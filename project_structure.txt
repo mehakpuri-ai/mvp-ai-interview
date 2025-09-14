@@ -1,0 +1,63 @@
+.
+├── .env.local
+├── .gitignore
+├── README.md
+├── eslint.config.mjs
+├── instrumentation-client.ts
+├── next-env.d.ts
+├── next.config.ts
+├── package-lock.json
+├── package.json
+├── postcss.config.mjs
+├── project_structure.txt
+├── public
+│   ├── file.svg
+│   ├── globe.svg
+│   ├── next.svg
+│   ├── questions
+│   │   ├── q1.mp4
+│   │   ├── q10.mp4
+│   │   ├── q2.mp4
+│   │   ├── q3.mp4
+│   │   ├── q4.mp4
+│   │   ├── q5.mp4
+│   │   ├── q6.mp4
+│   │   ├── q7.mp4
+│   │   ├── q8.mp4
+│   │   └── q9.mp4
+│   ├── vercel.svg
+│   └── window.svg
+├── src
+│   ├── app
+│   │   ├── api
+│   │   │   ├── feedback
+│   │   │   │   └── route.ts
+│   │   │   ├── process-session
+│   │   │   │   └── route.ts
+│   │   │   ├── questions
+│   │   │   │   └── route.ts
+│   │   │   └── sessions
+│   │   │       └── route.ts
+│   │   ├── complete
+│   │   │   └── page.tsx
+│   │   ├── favicon.ico
+│   │   ├── global.css
+│   │   ├── globals.css
+│   │   ├── interview
+│   │   │   └── page.tsx
+│   │   ├── layout.tsx
+│   │   ├── page.tsx
+│   │   ├── results
+│   │   │   └── page.tsx
+│   │   └── start
+│   │       └── page.tsx
+│   ├── components
+│   │   ├── PostHogInit.tsx
+│   │   └── RecorderUploader.tsx
+│   └── lib
+│       ├── supabaseAdmin.ts
+│       └── supabaseClient.ts
+├── tailwind.config.ts
+└── tsconfig.json
+
+16 directories, 45 files
