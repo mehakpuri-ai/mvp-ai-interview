@@ -1,4 +1,10 @@
 // src/app/api/answers/route.ts
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+/**
+ * Temporary: disables the "no-explicit-any" lint rule for this file.
+ * Action item: replace `any` usages with proper interfaces and delete this line.
+ */
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 

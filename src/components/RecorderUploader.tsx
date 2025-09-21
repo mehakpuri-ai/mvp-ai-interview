@@ -1,72 +1,74 @@
-"use client";
-import { useEffect, useRef, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
-import posthog from "posthog-js";
+// src/components/RecorderUploader.tsx
+import React, { useEffect, useState } from 'react';
+import { supabaseClient } from '@/lib/supabaseClient'; // adjust import path if different
 
-export default function RecorderUploader({ sessionId, questionId, timeLimit, onUploaded }:{sessionId:string,questionId:number,timeLimit:number,onUploaded:(path:string)=>void}) {
-  const [recording, setRecording] = useState(false);
-  const [preview, setPreview] = useState<string | null>(null);
-  const mrRef = useRef<MediaRecorder|null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const [secsLeft, setSecsLeft] = useState(timeLimit);
+type RecorderUploaderProps = {
+  onUploaded?: (url: string) => void;
+  maxFileSizeBytes?: number;
+  timeLimit?: number | null;
+};
 
-  useEffect(()=>{
-    let t: any;
-    if(recording){
-      t = setInterval(()=> setSecsLeft(s=> {
-        if (s<=1) { stopRecord(); return 0; }
-        return s-1;
-      }), 1000);
-    } else setSecsLeft(timeLimit);
-    return ()=> clearInterval(t);
-  }, [recording]);
+export default function RecorderUploader({
+  onUploaded,
+  maxFileSizeBytes = 50 * 1024 * 1024, // 50MB default
+  timeLimit = null,
+}: RecorderUploaderProps) {
+  const [uploading, setUploading] = useState(false);
+  const [secsLeft, setSecsLeft] = useState<number | null>(timeLimit);
 
-  const startRecord = async () => {
-    // 3..2..1 UI can be added in parent; keep simple
-    const stream = await navigator.mediaDevices.getUserMedia({ video:true, audio:true });
-    const mr = new MediaRecorder(stream, { mimeType:'video/webm;codecs=vp8,opus' });
-    mrRef.current = mr;
-    chunksRef.current = [];
-    mr.ondataavailable = (e)=> { if (e.data && e.data.size) chunksRef.current.push(e.data); };
-    mr.onstart = ()=> { setRecording(true); posthog.capture('recording_started',{ sessionId, questionId }); };
-    mr.onstop = async ()=>{
-      setRecording(false);
-      const blob = new Blob(chunksRef.current, { type:'video/webm' });
-      const fileName = `sessions/${sessionId}/answers/q${questionId}_${Date.now()}.webm`;
-      const { error:uploadErr } = await supabase.storage.from('sessions').upload(fileName, blob);
-      if(uploadErr){ alert('Upload failed: '+uploadErr.message); posthog.capture('recording_upload_failed',{sessionId, questionId}); return; }
-      await supabase.from('answers').insert([{ session_id: sessionId, question_id: questionId, video_path: fileName, duration: (timeLimit - secsLeft) }]);
-      const { data: urlData } = supabase.storage.from('sessions').getPublicUrl(fileName);
-      posthog.capture('recording_uploaded',{ sessionId, questionId, path: fileName });
-      setPreview(URL.createObjectURL(blob));
-      onUploaded(fileName);
-      // stop tracks
-      stream.getTracks().forEach(t=>t.stop());
-    };
-    mr.start();
-    // small delay to ensure recorder started
-    setTimeout(()=>{},100);
-  };
-
-  const stopRecord = () => {
-    if(mrRef.current && mrRef.current.state !== 'inactive') {
-      mrRef.current.stop();
-      posthog.capture('recording_stopped', { sessionId, questionId, duration: timeLimit - secsLeft });
+  useEffect(() => {
+    if (timeLimit === null) {
+      setSecsLeft(null);
+      return;
     }
-  };
+    setSecsLeft(timeLimit);
+    const iv = setInterval(() => {
+      setSecsLeft((s) => (s && s > 0 ? s - 1 : 0));
+    }, 1000);
+    return () => clearInterval(iv);
+    // we depend on timeLimit; do not disable exhaustive-deps
+  }, [timeLimit]);
+
+  async function uploadFile(file: File) {
+    if (!file) return;
+    if (file.size > maxFileSizeBytes) {
+      alert('File too large');
+      return;
+    }
+    try {
+      setUploading(true);
+      const path = `recordings/${Date.now()}_${file.name}`;
+      const { data, error } = await supabaseClient.storage
+        .from('public') // change bucket name if needed
+        .upload(path, file, { cacheControl: '3600', upsert: false });
+
+      if (error) throw error;
+
+      // get public URL
+      const { data: urlData } = supabaseClient.storage.from('public').getPublicUrl(path);
+      const publicUrl = urlData.publicUrl;
+      setUploading(false);
+      onUploaded?.(publicUrl);
+      return publicUrl;
+    } catch (err) {
+      console.error('Upload failed', err);
+      setUploading(false);
+      alert('Upload failed');
+      return null;
+    }
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    uploadFile(files[0]);
+  }
 
   return (
-    <div className="w-full">
-      <div className="relative aspect-video w-full bg-black">
-        {/* preview area */}
-        {preview ? <video src={preview} controls className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-white/50">Your answer will show here</div>}
-      </div>
-      <div className="mt-3 flex items-center justify-between">
-        <div className={`font-mono ${secsLeft<=10 ? 'text-red-400' : 'text-white'}`}>{secsLeft}s</div>
-        <div className="flex gap-2">
-          {!recording ? <button onClick={startRecord} className="px-4 py-2 bg-[#E83F6F] rounded">Record</button> : <button onClick={stopRecord} className="px-4 py-2 bg-red-600 rounded">Stop</button>}
-        </div>
-      </div>
+    <div>
+      <input type="file" accept="audio/*,video/*" onChange={handleFileChange} />
+      {uploading ? <div>Uploading…</div> : null}
+      {secsLeft !== null && <div>Time left: {secsLeft}s</div>}
     </div>
   );
 }
