@@ -1,19 +1,21 @@
-"use client";
-import { useSearchParams, useRouter } from "next/navigation";
-import { useEffect } from "react";
+// src/app/complete/page.tsx
+import React, { Suspense } from 'react';
+import CompleteClient from './CompleteClient'; // adjust path if you placed it elsewhere
 
-export default function Complete(){
-  const params = useSearchParams();
-  const session = params.get('session') || '';
-  const router = useRouter();
+export const metadata = {
+  title: 'Complete',
+};
 
-  useEffect(()=>{
-    // call server to process session (mock feedback)
-    (async ()=>{
-      await fetch('/api/process-session', { method: 'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ sessionId: session }) });
-      router.push(`/results?session=${session}`);
-    })();
-  }, [session]);
+export default function Page() {
+  return (
+    <main>
+      <h1>Thank you</h1>
 
-  return <div className="min-h-dvh flex items-center justify-center">Processing your results…</div>;
+      <Suspense fallback={<div>Loading details…</div>}>
+        <CompleteClient />
+      </Suspense>
+
+      {/* rest of the server-rendered content */}
+    </main>
+  );
 }
