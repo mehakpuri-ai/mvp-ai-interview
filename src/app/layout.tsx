@@ -1,3 +1,4 @@
+// src/app/layout.tsx
 import './globals.css'
 import type { ReactNode } from "react";
 import PostHogInit from "@/components/PostHogInit";
@@ -11,11 +12,13 @@ export const metadata = {
   description: 'Practice PM interviews with AI feedback',
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <body className={lexend.className}>
-        {children}
+        <PostHogInit>
+          {children}
+        </PostHogInit>
       </body>
     </html>
   )

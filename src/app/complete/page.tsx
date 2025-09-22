@@ -1,21 +1,8 @@
-// src/app/complete/page.tsx
-import React, { Suspense } from 'react';
-import CompleteClient from './CompleteClient'; // adjust path if you placed it elsewhere
+// src/app/complete/page.tsx  (server component)
+import ClientComplete from '@/app/complete/ClientComplete';
 
-export const metadata = {
-  title: 'Complete',
-};
+export default function CompletePage({ searchParams }: { searchParams?: any }) {
+  const sessionId = searchParams?.sessionId ?? searchParams?.session ?? "";
 
-export default function Page() {
-  return (
-    <main>
-      <h1>Thank you</h1>
-
-      <Suspense fallback={<div>Loading details…</div>}>
-        <CompleteClient />
-      </Suspense>
-
-      {/* rest of the server-rendered content */}
-    </main>
-  );
+  return <ClientComplete sessionId={String(sessionId)} />;
 }

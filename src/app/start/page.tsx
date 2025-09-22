@@ -1,4 +1,5 @@
-"use client";
+// src/app/start/page.tsx
+'use client';
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
@@ -33,14 +34,15 @@ export default function Start() {
         throw new Error("Invalid API response: session not found");
       }
 
-      // ✅ Pass skill directly, not "level"
+      const sessionId = j.session.id;
       router.push(
-        `/interview?session=${j.session.id}&skill=${skill}&name=${encodeURIComponent(
-          name
-        )}`
+        `/interview?sessionId=${encodeURIComponent(sessionId)}&skill=${encodeURIComponent(
+          skill
+        )}&name=${encodeURIComponent(name)}`
       );
     } catch (err) {
       console.error("Error creating session:", err);
+      alert("Failed to create session. See console.");
     } finally {
       setLoading(false);
     }
@@ -48,22 +50,18 @@ export default function Start() {
 
   return (
     <div className="relative h-screen w-screen overflow-hidden font-lexend bg-white">
-      {/* Intro Video */}
       <video
         ref={videoRef}
         autoPlay
         playsInline
-        muted
         onEnded={() => setVideoEnded(true)}
         className="absolute top-0 left-0 w-full h-full object-cover bg-white rounded-3xl"
       >
         <source src="/intro.mp4" type="video/mp4" />
       </video>
 
-      {/* Overlay */}
       <div className="absolute inset-0 bg-black/10"></div>
 
-      {/* Fade-in Form */}
       <AnimatePresence>
         {videoEnded && (
           <motion.div
@@ -77,7 +75,6 @@ export default function Start() {
               Ready to Begin?
             </h2>
 
-            {/* Name Input */}
             <input
               type="text"
               placeholder="Your Name"
@@ -86,7 +83,6 @@ export default function Start() {
               className="w-full p-3 mb-3 rounded-lg border border-white/30 bg-white/10 text-black placeholder-black focus:border-[#3eb5e8] outline-none"
             />
 
-            {/* Email Input */}
             <input
               type="email"
               placeholder="Your Email"
@@ -95,7 +91,6 @@ export default function Start() {
               className="w-full p-3 mb-3 rounded-lg border border-white/30 bg-white/10 text-black placeholder-black focus:border-[#3eb5e8] outline-none"
             />
 
-            {/* Skill Selector */}
             <div className="flex gap-3 mb-5">
               {["Beginner", "Intermediate"].map((level) => (
                 <button
@@ -113,7 +108,6 @@ export default function Start() {
               ))}
             </div>
 
-            {/* Begin Button */}
             <button
               onClick={() => createSession()}
               disabled={loading || !name || !email || !skill}

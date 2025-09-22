@@ -10,9 +10,7 @@ export default function RecordPage() {
   const sp = useSearchParams();
   const router = useRouter();
 
-  const sessionId = sp.get("sessionId")!;
-  const name = sp.get("name") || "";
-  const skill = sp.get("skill") || "Beginner";
+  const sessionId = sp.get("sessionId") ?? "";
   const timeLimit = Number(sp.get("time") || "90");
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -22,19 +20,16 @@ export default function RecordPage() {
 
   const [countdown, setCountdown] = useState(3);
   const [recording, setRecording] = useState(false);
-  const [seconds, setSeconds] = useState(timeLimit);
+  const [secondsLeft, setSecondsLeft] = useState(timeLimit);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isAudioOnly, setIsAudioOnly] = useState(false);
 
-  // get media with fallback to audio only
+  // Request camera/mic
   useEffect(() => {
     (async () => {
       try {
-        const s = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: true,
-        });
+        const s = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         streamRef.current = s;
         if (videoRef.current) {
           videoRef.current.srcObject = s as any;
@@ -45,10 +40,7 @@ export default function RecordPage() {
           const s = await navigator.mediaDevices.getUserMedia({ audio: true });
           setIsAudioOnly(true);
           streamRef.current = s;
-          if (videoRef.current) {
-            // audio-only, show placeholder background; no srcObject needed
-          }
-        } catch (e) {
+        } catch {
           setError("Camera/Microphone not available.");
         }
       }
@@ -59,27 +51,28 @@ export default function RecordPage() {
     };
   }, []);
 
-  // countdown then start recording
+  // Countdown before starting
   useEffect(() => {
-    if (streamRef.current && countdown > 0) {
+    if (!streamRef.current) return;
+    if (countdown > 0) {
       const t = setTimeout(() => setCountdown((c) => c - 1), 1000);
       return () => clearTimeout(t);
-    } else if (streamRef.current && countdown === 0 && !recording) {
+    }
+    if (countdown === 0 && !recording) {
       startRecording();
     }
-  }, [countdown, streamRef.current]);
+  }, [countdown, recording]);
 
-  // timer tick during recording
+  // Timer tick while recording
   useEffect(() => {
     if (!recording) return;
-    if (seconds <= 0) {
-      // auto stop & submit
+    if (secondsLeft <= 0) {
       stopRecording(true);
       return;
     }
-    const t = setTimeout(() => setSeconds((s) => s - 1), 1000);
+    const t = setTimeout(() => setSecondsLeft((s) => s - 1), 1000);
     return () => clearTimeout(t);
-  }, [recording, seconds]);
+  }, [recording, secondsLeft]);
 
   const startRecording = () => {
     if (!streamRef.current) return;
@@ -95,7 +88,7 @@ export default function RecordPage() {
       await submitBlob(blob);
     };
 
-    mr.start(100); // gather chunks
+    mr.start(100);
     setRecording(true);
   };
 
@@ -113,7 +106,6 @@ export default function RecordPage() {
       const now = new Date().toISOString().replace(/[:.]/g, "-");
       const path = `${sessionId}/${qid}-${now}.webm`;
 
-      // 1) upload to storage
       const { error: upErr } = await supabaseClient.storage
         .from("recordings")
         .upload(path, blob, {
@@ -123,8 +115,7 @@ export default function RecordPage() {
         });
       if (upErr) throw upErr;
 
-      // 2) insert answers row
-      const duration = timeLimit - seconds;
+      const duration = timeLimit - secondsLeft;
       const res = await fetch("/api/answers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -138,11 +129,7 @@ export default function RecordPage() {
       const j = await res.json();
       if (j.error) throw new Error(j.error);
 
-      // 3) get next question or go to results
-      // we don't know total here, simply redirect back to /interview,
-      // /interview will show next question based on remaining list.
-      router.back(); // go back to interview page
-      // or router.push(`/interview?sessionId=${sessionId}&skill=${encodeURIComponent(skill)}&name=${encodeURIComponent(name)}`);
+      router.back();
     } catch (e: any) {
       setError(e.message ?? "Upload failed");
     } finally {
@@ -151,45 +138,41 @@ export default function RecordPage() {
   };
 
   const timeColor = useMemo(() => {
-    if (seconds <= 10) return "bg-red-600";
-    if (seconds <= 30) return "bg-yellow-500";
+    if (secondsLeft <= 10) return "bg-red-600";
+    if (secondsLeft <= 30) return "bg-yellow-500";
     return "bg-white/20";
-  }, [seconds]);
+  }, [secondsLeft]);
 
   return (
     <div className="relative min-h-screen w-full bg-black text-white">
-      {/* timer top-left */}
+      {/* Countdown / Timer top-left */}
       <div className={`absolute top-4 left-4 px-3 py-1 rounded-full border border-white/20 ${timeColor}`}>
-        {recording ? `Time: ${seconds}s` : countdown > 0 ? `Starting in ${countdown}…` : "Starting…"}
+        {!recording
+          ? countdown > 0
+            ? `Starting in ${countdown}…`
+            : "Preparing…"
+          : `Time left: ${secondsLeft}s`}
       </div>
 
-      {/* preview */}
+      {/* Preview */}
       <div className="w-full h-screen grid place-items-center">
         {isAudioOnly ? (
           <div className="w-64 h-64 rounded-full bg-white/10 border border-white/20 grid place-items-center">
             <span className="text-white/80">Audio-only Recording</span>
           </div>
         ) : (
-          <video
-            ref={videoRef}
-            className="w-full h-full object-cover"
-            autoPlay
-            muted
-            playsInline
-          />
+          <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted playsInline />
         )}
       </div>
 
-      {/* controls bottom */}
+      {/* Controls */}
       <div className="absolute bottom-8 left-1/2 -translate-x-1/2">
-        {!recording ? (
-          <button
-            disabled
-            className="px-6 py-3 rounded-full bg-gray-600 text-white/60"
-          >
-            {countdown > 0 ? "Get Ready…" : "Preparing…"}
+        {!recording && countdown > 0 && (
+          <button disabled className="px-6 py-3 rounded-full bg-gray-600 text-white/60">
+            Get Ready…
           </button>
-        ) : (
+        )}
+        {recording && (
           <button
             onClick={() => stopRecording(false)}
             disabled={submitting}
@@ -200,9 +183,7 @@ export default function RecordPage() {
         )}
       </div>
 
-      {error && (
-        <div className="absolute top-4 right-4 bg-red-600/80 px-4 py-2 rounded">{error}</div>
-      )}
+      {error && <div className="absolute top-4 right-4 bg-red-600/80 px-4 py-2 rounded">{error}</div>}
     </div>
   );
 }
